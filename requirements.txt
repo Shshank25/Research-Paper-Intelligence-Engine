@@ -1,0 +1,28 @@
+# ============================================================
+# Research Paper Intelligence Engine — RAG System
+# Requirements
+# ============================================================
+
+# PDF Processing
+PyMuPDF>=1.23.0
+
+# Text Splitting & LLM Chains
+langchain>=0.1.0
+langchain-community>=0.0.20
+
+# Embeddings
+sentence-transformers>=2.2.2
+
+# Vector Store
+faiss-cpu>=1.7.4
+
+# HuggingFace Models (Summarization / QA)
+transformers>=4.36.0
+torch>=2.0.0
+
+# UI
+streamlit>=1.30.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.66.0

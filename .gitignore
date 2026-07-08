@@ -1,0 +1,10 @@
+__pycache__/
+venv/
+data/
+documents/
+embeddings/
+hf_cache/
+site_packages/
+vector_store/
+*.pdf
+.DS_Store
