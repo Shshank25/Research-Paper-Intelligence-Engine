@@ -8,27 +8,70 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Architecture](#-architecture) • [Contributing](#-contributing)
+[Overview](#-overview) • [Motivation](#-motivation) • [Features](#-features) • [System Architecture](#-system-architecture) • [Technology Stack](#-technology-stack) • [Installation](#-installation) • [Usage](#-usage) • [Screenshots & Demo](#-screenshots--demo) • [Project Structure](#-project-structure) • [Future Work](#-future-work)
 
 </div>
 
 ---
 
-## 📌 Features
+## 📌 Overview
 
-Upload one or more research paper PDFs and:
-- 💬 **Ask questions** in plain English and get AI-generated answers grounded in the text.
-- 📝 **Generate summaries** of any paper automatically.
-- 🔍 **Extract insights**: Identify Key Findings, Limitations, and Future Work instantly.
-- 📖 **Explore retrieved chunks** for full transparency and citation checking.
+Upload one or more research paper PDFs and use this **Retrieval-Augmented Generation (RAG)** system to ask plain-English questions, generate summaries, and extract insights. 
 
 **Everything runs entirely locally** — no OpenAI API key needed. Your documents never leave your machine!
 
 ---
 
-## 🚀 Quick Start
+## 💡 Motivation
 
-### Installation
+Reading and synthesizing academic research papers is highly time-consuming. Researchers and students often spend hours parsing through dense PDFs just to extract key methodologies or findings. This project was built to automate the extraction of knowledge, serving as a personal, privacy-first AI Research Assistant that drastically cuts down literature review time.
+
+---
+
+## ✨ Features
+
+- 💬 **Ask questions** in plain English and get AI-generated answers grounded in the text.
+- 📝 **Generate summaries** of any paper automatically.
+- 🔍 **Extract insights**: Identify Key Findings, Limitations, and Future Work instantly.
+- 📖 **Explore retrieved chunks** for full transparency and citation checking.
+
+---
+
+## 🏗️ System Architecture
+
+This project is built using a state-of-the-art modular RAG pipeline:
+
+```mermaid
+graph TD
+    A[PDF Upload] --> B(Text Extraction\nPyMuPDF)
+    B --> C(Chunking\nLangChain)
+    C --> D(Embeddings\nSentence Transformers)
+    D --> E[(FAISS Vector DB)]
+    E --> F(Semantic Retriever)
+    F --> G(RAG QA Pipeline\nHuggingFace)
+    G --> H[Streamlit UI]
+```
+
+---
+
+## 🤖 Technology Stack & Versions
+
+We use robust open-source libraries for this local pipeline:
+
+| Component | Technology | Version |
+|---|---|---|
+| **Language** | Python | `>=3.9` |
+| **PDF Extraction** | PyMuPDF (`fitz`) | `1.24.5` |
+| **Text Splitting** | LangChain | `0.2.x` |
+| **Embeddings** | `sentence-transformers` (all-MiniLM-L6-v2) | `3.0.1` |
+| **Vector Store** | FAISS (CPU) | `1.8.0` |
+| **QA Model** | HuggingFace `deepset/roberta-base-squad2` | `transformers` |
+| **Summarization** | HuggingFace `facebook/bart-large-cnn` | `transformers` |
+| **Frontend** | Streamlit | `1.35.0` |
+
+---
+
+## 🚀 Installation
 
 1. **Clone the repository**
    ```bash
@@ -41,8 +84,6 @@ Upload one or more research paper PDFs and:
    python -m venv venv
    # On Windows
    venv\Scripts\activate
-   # On macOS/Linux
-   source venv/bin/activate
    ```
 
 3. **Install dependencies**
@@ -50,7 +91,9 @@ Upload one or more research paper PDFs and:
    pip install -r requirements.txt
    ```
 
-### Usage
+---
+
+## 🎯 Usage
 
 1. **Run the Streamlit App**
    ```bash
@@ -64,36 +107,21 @@ Upload one or more research paper PDFs and:
 
 ---
 
-## 🏗️ Architecture
+## 📸 Screenshots & Demo
 
-This project is built using a state-of-the-art modular RAG (Retrieval-Augmented Generation) pipeline:
+### Live Demo
+![Demo](assets/demo.webp)
 
-```mermaid
-graph LR
-    A[PDF Upload] --> B(Text Extraction\nPyMuPDF)
-    B --> C(Chunking\nLangChain)
-    C --> D(Embeddings\nSentenceTransformers)
-    D --> E[(FAISS Vector DB)]
-    E --> F(Semantic Retrieval)
-    F --> G(RAG Pipeline\nHuggingFace QA)
-    G --> H[Streamlit UI]
-```
-
-### 🤖 Technology Stack
-
-| Component | Technology |
-|---|---|
-| **PDF Extraction** | PyMuPDF (`fitz`) |
-| **Text Splitting** | LangChain `RecursiveCharacterTextSplitter` |
-| **Embeddings** | `sentence-transformers` (all-MiniLM-L6-v2) |
-| **Vector Store** | FAISS (CPU) |
-| **Question Answering** | HuggingFace `deepset/roberta-base-squad2` |
-| **Summarization** | HuggingFace `facebook/bart-large-cnn` |
-| **Frontend** | Streamlit |
+### UI Screenshots
+*(Add screenshots of your application here)*
+- **Home Interface:** `![Home Interface](assets/home.png)`
+- **PDF Upload:** `![Upload](assets/upload.png)`
+- **Question Answering:** `![QA](assets/qa.png)`
+- **Paper Summary:** `![Summary](assets/summary.png)`
 
 ---
 
-## 📁 Repository Structure
+## 📁 Project Structure
 
 ```text
 Research-Paper-Intelligence-Engine/
@@ -109,6 +137,7 @@ Research-Paper-Intelligence-Engine/
 ├── documents/                 # Extracted .txt files (auto-created)
 ├── embeddings/                # Saved .npy embedding arrays
 ├── vector_store/              # FAISS index + chunk metadata
+├── assets/                    # Demo videos and screenshots
 ├── app.py                     # Main Streamlit UI
 ├── config.py                  # Global configurations
 └── run.py                     # App Launcher script
@@ -116,40 +145,15 @@ Research-Paper-Intelligence-Engine/
 
 ---
 
-## ⚙️ Configuration
+## 🔮 Future Work (Phase 2 & Beyond)
 
-All tunable parameters can be found and easily modified in `config.py`:
+This VT project (Phase 1) successfully established the foundational RAG pipeline. In the next semesters, this project will evolve into a full **Agentic AI Research Scientist**:
 
-| Parameter | Default | Description |
-|---|---|---|
-| `CHUNK_SIZE` | `500` | Characters per chunk |
-| `CHUNK_OVERLAP` | `100` | Overlap between chunks to retain context |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | SentenceTransformer model |
-| `QA_MODEL` | `deepset/roberta-base-squad2` | Extractive QA model |
-
----
-
-## 🧪 Testing Modules Independently
-
-You can test each phase independently from the root directory:
-
-```bash
-# Phase 1 — PDF Processor
-python src/pdf_processor.py path/to/paper.pdf
-
-# Phase 2 — Chunking
-python src/chunking.py
-
-# Phase 6 — RAG Pipeline
-python src/rag_pipeline.py
-```
-*(See `src/` for all independent modules.)*
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests, report issues, and suggest features. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Multi-Agent Architecture:** Implementing LangGraph or AutoGen to orchestrate multiple specialized agents.
+- **Autonomous Paper Discovery:** Integration with the ArXiv API to fetch related papers dynamically.
+- **Knowledge Graph Integration:** Mapping relationships between citations and concepts across multiple papers.
+- **Research Gap Detection:** Using LLMs to automatically identify unaddressed areas in current literature.
+- **Hypothesis & Experiment Generation:** Generating proposals based on detected research gaps.
 
 ---
 
@@ -160,5 +164,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <i>Built with ❤️ as Phase 1 of the Agentic AI Research Scientist system.</i>
+  <i>Built with ❤️ as a Vocational Training (VT) Project.</i><br>
+  <strong>Phase 1 of the Agentic AI Research Scientist system.</strong>
 </div>
