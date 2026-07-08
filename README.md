@@ -1,175 +1,164 @@
-# 🧠 Research Paper Intelligence Engine — RAG System
+<div align="center">
+  
+# 🧠 Research Paper Intelligence Engine
 
-> **Phase 1 of the Agentic AI Research Scientist System**
-> A complete, local, beginner-friendly RAG pipeline for research papers.
+**A complete, local, beginner-friendly RAG pipeline for research papers.**
+
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Architecture](#-architecture) • [Contributing](#-contributing)
+
+</div>
 
 ---
 
-## 📌 What This Does
+## 📌 Features
 
 Upload one or more research paper PDFs and:
-- **Ask questions** in plain English → get AI-generated answers
-- **Generate summaries** of any paper automatically
-- **Extract insights**: Key Findings, Limitations, Future Work
-- **Explore retrieved chunks** for full transparency
+- 💬 **Ask questions** in plain English and get AI-generated answers grounded in the text.
+- 📝 **Generate summaries** of any paper automatically.
+- 🔍 **Extract insights**: Identify Key Findings, Limitations, and Future Work instantly.
+- 📖 **Explore retrieved chunks** for full transparency and citation checking.
 
-Everything runs **locally** — no OpenAI API key needed.
-
----
-
-## 🏗️ System Architecture
-
-```
-PDF Upload → Text Extraction (PyMuPDF)
-         → Text Cleaning
-         → Chunking (LangChain)
-         → Embeddings (Sentence Transformers)
-         → FAISS Index (Vector DB)
-         → Semantic Retrieval
-         → RAG Pipeline (HuggingFace QA)
-         → Streamlit UI
-```
-
----
-
-## 📁 Folder Structure
-
-```
-VT/
-├── data/                      # Uploaded PDFs (auto-created)
-├── documents/                 # Extracted .txt files (auto-created)
-├── embeddings/                # Saved .npy embedding arrays
-├── vector_store/              # FAISS index + chunk metadata
-├── src/
-│   ├── __init__.py
-│   ├── pdf_processor.py       # Phase 1 — PDF extraction
-│   ├── chunking.py            # Phase 2 — Text chunking
-│   ├── embeddings.py          # Phase 3 — Embeddings
-│   ├── vector_db.py           # Phase 4 — FAISS store
-│   ├── retriever.py           # Phase 5 — Semantic search
-│   ├── rag_pipeline.py        # Phase 6 — RAG Q&A
-│   └── summarizer.py          # Phase 7&8 — Summarization + Insights
-├── app.py                     # Phase 9 — Streamlit UI
-├── config.py                  # Central configuration
-├── requirements.txt
-└── README.md
-```
+**Everything runs entirely locally** — no OpenAI API key needed. Your documents never leave your machine!
 
 ---
 
 ## 🚀 Quick Start
 
-### Step 1: Install dependencies
-```bash
-pip install -r requirements.txt
-```
+### Installation
 
-### Step 2: Run the app
-```bash
-streamlit run app.py
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Shshank25/Research-Paper-Intelligence-Engine.git
+   cd Research-Paper-Intelligence-Engine
+   ```
 
-### Step 3: Use the app
-1. Drag & drop PDF(s) in the sidebar
-2. Click **Process & Index PDFs**
-3. Use the tabs to ask questions, summarize, or extract insights
+2. **Create a virtual environment (Recommended)**
+   ```bash
+   python -m venv venv
+   # On Windows
+   venv\Scripts\activate
+   # On macOS/Linux
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Usage
+
+1. **Run the Streamlit App**
+   ```bash
+   streamlit run app.py
+   ```
+2. **Interact!**
+   - Open your browser to `http://localhost:8501`.
+   - Drag & drop your PDF(s) into the sidebar.
+   - Click **Process & Index PDFs**.
+   - Use the interactive tabs to Ask Questions, Summarize, or Extract Insights!
 
 ---
 
-## 🧪 Testing Each Module
+## 🏗️ Architecture
 
-You can test each module independently from the `E:\VT` directory:
+This project is built using a state-of-the-art modular RAG (Retrieval-Augmented Generation) pipeline:
 
-### Phase 1 — PDF Processor
-```bash
-python src/pdf_processor.py path/to/paper.pdf
+```mermaid
+graph LR
+    A[PDF Upload] --> B(Text Extraction\nPyMuPDF)
+    B --> C(Chunking\nLangChain)
+    C --> D(Embeddings\nSentenceTransformers)
+    D --> E[(FAISS Vector DB)]
+    E --> F(Semantic Retrieval)
+    F --> G(RAG Pipeline\nHuggingFace QA)
+    G --> H[Streamlit UI]
 ```
 
-### Phase 2 — Chunking
-```bash
-python src/chunking.py
-```
+### 🤖 Technology Stack
 
-### Phase 3 — Embeddings
-```bash
-python src/embeddings.py
-```
+| Component | Technology |
+|---|---|
+| **PDF Extraction** | PyMuPDF (`fitz`) |
+| **Text Splitting** | LangChain `RecursiveCharacterTextSplitter` |
+| **Embeddings** | `sentence-transformers` (all-MiniLM-L6-v2) |
+| **Vector Store** | FAISS (CPU) |
+| **Question Answering** | HuggingFace `deepset/roberta-base-squad2` |
+| **Summarization** | HuggingFace `facebook/bart-large-cnn` |
+| **Frontend** | Streamlit |
 
-### Phase 4 — FAISS Vector DB
-```bash
-python src/vector_db.py
-```
+---
 
-### Phase 5 — Retriever
-```bash
-python src/retriever.py
-```
+## 📁 Repository Structure
 
-### Phase 6 — RAG Pipeline
-```bash
-python src/rag_pipeline.py
-```
-
-### Phase 7 & 8 — Summarizer
-```bash
-python src/summarizer.py
+```text
+Research-Paper-Intelligence-Engine/
+├── src/
+│   ├── pdf_processor.py       # Extract text from PDFs
+│   ├── chunking.py            # Break text into semantic chunks
+│   ├── embeddings.py          # Generate vector embeddings
+│   ├── vector_db.py           # Manage FAISS index
+│   ├── retriever.py           # Perform semantic search
+│   ├── rag_pipeline.py        # Execute RAG Q&A
+│   └── summarizer.py          # Generate summaries & insights
+├── data/                      # Uploaded PDFs (auto-created)
+├── documents/                 # Extracted .txt files (auto-created)
+├── embeddings/                # Saved .npy embedding arrays
+├── vector_store/              # FAISS index + chunk metadata
+├── app.py                     # Main Streamlit UI
+├── config.py                  # Global configurations
+└── run.py                     # App Launcher script
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-All tunable parameters are in `config.py`:
+All tunable parameters can be found and easily modified in `config.py`:
 
 | Parameter | Default | Description |
 |---|---|---|
-| `CHUNK_SIZE` | 500 | Characters per chunk |
-| `CHUNK_OVERLAP` | 100 | Overlap between chunks |
+| `CHUNK_SIZE` | `500` | Characters per chunk |
+| `CHUNK_OVERLAP` | `100` | Overlap between chunks to retain context |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | SentenceTransformer model |
-| `TOP_K_RESULTS` | 5 | Retrieved chunks per query |
 | `QA_MODEL` | `deepset/roberta-base-squad2` | Extractive QA model |
-| `SUMMARIZATION_MODEL` | `facebook/bart-large-cnn` | Summarization model |
 
 ---
 
-## 🤖 Technology Stack
+## 🧪 Testing Modules Independently
 
-| Component | Technology |
-|---|---|
-| PDF Extraction | PyMuPDF (`fitz`) |
-| Text Splitting | LangChain `RecursiveCharacterTextSplitter` |
-| Embeddings | `sentence-transformers` (all-MiniLM-L6-v2) |
-| Vector Store | FAISS (CPU) |
-| Question Answering | HuggingFace `deepset/roberta-base-squad2` |
-| Summarization | HuggingFace `facebook/bart-large-cnn` |
-| UI | Streamlit |
+You can test each phase independently from the root directory:
 
----
+```bash
+# Phase 1 — PDF Processor
+python src/pdf_processor.py path/to/paper.pdf
 
-## ❗ Common Errors and Fixes
+# Phase 2 — Chunking
+python src/chunking.py
 
-| Error | Fix |
-|---|---|
-| `No module named 'fitz'` | `pip install PyMuPDF` |
-| `No module named 'faiss'` | `pip install faiss-cpu` |
-| `No FAISS index found` | Upload and process PDFs first via the UI |
-| `CUDA out of memory` | Models run on CPU by default — no GPU needed |
-| HuggingFace model download hangs | Check internet connection; models are cached after first download |
-| Streamlit port in use | `streamlit run app.py --server.port 8502` |
+# Phase 6 — RAG Pipeline
+python src/rag_pipeline.py
+```
+*(See `src/` for all independent modules.)*
 
 ---
 
-## 🔮 Future Phases (Agentic AI Research Scientist)
+## 🤝 Contributing
 
-- **Phase 2**: Multi-agent research workflow (LangGraph / AutoGen)
-- **Phase 3**: Autonomous paper discovery (ArXiv API)
-- **Phase 4**: Cross-paper synthesis and citation graph
-- **Phase 5**: Research report auto-generation
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests, report issues, and suggest features. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
-## 👨‍💻 Author
+## 📜 License
 
-Built as a Vocational Training (VT) Project — Phase 1 of the Agentic AI Research Scientist system.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-*June 2026*
+---
+
+<div align="center">
+  <i>Built with ❤️ as Phase 1 of the Agentic AI Research Scientist system.</i>
+</div>
