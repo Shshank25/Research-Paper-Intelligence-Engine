@@ -226,8 +226,8 @@ def load_embedding_gen():
     return EmbeddingGenerator()
 
 @st.cache_resource(show_spinner="Loading QA model…")
-def load_rag_pipeline(retriever):
-    return RAGPipeline(retriever=retriever)
+def load_rag_pipeline():
+    return RAGPipeline(retriever=None)
 
 @st.cache_resource(show_spinner="Loading summarizer…")
 def load_summarizer():
@@ -412,37 +412,51 @@ with tab_qa:
             ask_btn = st.button("🔎 Ask", key="ask_btn", use_container_width=True)
 
         if ask_btn and question:
-            with st.spinner("🤔 Thinking…"):
-                try:
-                    rag = RAGPipeline(
-                        retriever=st.session_state.retriever,
-                    )
-                    result = rag.answer(question, top_k=top_k)
+            try:
+                rag = load_rag_pipeline()
+                rag.retriever = st.session_state.retriever
 
-                    # ── Answer box ──
-                    badge = confidence_badge(result["confidence"])
-                    st.markdown(f"### Answer {badge}", unsafe_allow_html=True)
-                    st.markdown(
-                        f'<div class="answer-box">{result["answer"]}</div>',
+                st.markdown(f"### Answer {confidence_badge(1.0)}", unsafe_allow_html=True)
+                answer_placeholder = st.empty()
+                
+                with st.spinner("🤔 Searching papers & thinking…"):
+                    result = rag.answer(question, top_k=top_k, stream=True)
+
+                streamer = result["streamer"]
+                thread = result["thread"]
+
+                full_answer = ""
+                for new_text in streamer:
+                    full_answer += new_text
+                    # Display with a blinking cursor
+                    answer_placeholder.markdown(
+                        f'<div class="answer-box">{full_answer} ▌</div>',
                         unsafe_allow_html=True,
                     )
+                
+                # Remove cursor when done
+                answer_placeholder.markdown(
+                    f'<div class="answer-box">{full_answer}</div>',
+                    unsafe_allow_html=True,
+                )
+                thread.join()
 
-                    # ── Sources ──
-                    st.markdown("**Sources used:**")
-                    unique_sources = {s["source"] for s in result["sources"]}
-                    chips = " ".join(
-                        f'<span class="source-chip">📄 {s}</span>'
-                        for s in unique_sources
-                    )
-                    st.markdown(chips, unsafe_allow_html=True)
+                # ── Sources ──
+                st.markdown("**Sources used:**")
+                unique_sources = {s["source"] for s in result["sources"]}
+                chips = " ".join(
+                    f'<span class="source-chip">📄 {s}</span>'
+                    for s in unique_sources
+                )
+                st.markdown(chips, unsafe_allow_html=True)
 
-                    # ── Expandable context ──
-                    with st.expander("🔎 View retrieved context"):
-                        st.code(result["context"][:2000], language=None)
+                # ── Expandable context ──
+                with st.expander("🔎 View retrieved context"):
+                    st.code(result["context"][:2000], language=None)
 
-                except Exception as exc:
-                    st.error(f"❌ Error: {exc}")
-                    logger.exception(exc)
+            except Exception as exc:
+                st.error(f"❌ Error: {exc}")
+                logger.exception(exc)
 
         elif ask_btn and not question:
             st.warning("Please type a question first.")
