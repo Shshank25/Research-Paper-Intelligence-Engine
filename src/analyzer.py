@@ -1,13 +1,14 @@
 # ============================================================
 # src/analyzer.py
-# Agentic Workflow: Structured Analysis & Comparison
+# Agentic Workflow: Structured Analysis, Comparison & Review
+# Phase 5, 6, 7 — Pydantic Insight Extractor & Synthesis Engine
 # ============================================================
 
 import os
 import json
 import logging
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Union, Optional
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,62 +22,77 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# ── Structured Data Schema ───────────────────────────────────
+
 class PaperAnalysis(BaseModel):
-    title: str
-    research_problem: str
-    objective: str
-    proposed_method: str
-    dataset: str
-    evaluation_metrics: str
-    experimental_results: str
-    key_findings: str | list
-    limitations: str | list
-    future_work: str | list
+    title: str = Field(description="Title of the research paper")
+    research_problem: str = Field(default="Not explicitly mentioned in the paper.")
+    objective: str = Field(default="Not explicitly mentioned in the paper.")
+    proposed_method: str = Field(default="Not explicitly mentioned in the paper.")
+    dataset: str = Field(default="Not explicitly mentioned in the paper.")
+    evaluation_metrics: str = Field(default="Not explicitly mentioned in the paper.")
+    experimental_results: str = Field(default="Not explicitly mentioned in the paper.")
+    key_findings: Union[str, List[str]] = Field(default="Not explicitly mentioned in the paper.")
+    limitations: Union[str, List[str]] = Field(default="Not explicitly mentioned in the paper.")
+    future_work: Union[str, List[str]] = Field(default="Not explicitly mentioned in the paper.")
+
 
 class AgentAnalyzer:
-    def __init__(self, rag_pipeline: RAGPipeline, summarizer: Summarizer):
+    """
+    Analyzes individual research papers using the existing VT RAG Pipeline
+    and generates multi-paper comparative matrices and literature reviews.
+    """
+    def __init__(self, rag_pipeline: Optional[RAGPipeline], summarizer: Optional[Summarizer]):
         self.rag = rag_pipeline
         self.summarizer = summarizer
 
+    def _sanitize_field(self, val: Any) -> str:
+        """Helper to ensure clean, non-empty text string."""
+        if not val or val is None:
+            return "Not explicitly mentioned in the paper."
+        text = str(val).strip()
+        if not text or "cannot answer" in text.lower() or "not found" in text.lower() or "error" in text.lower():
+            return "Not explicitly mentioned in the paper."
+        return text
+
     def analyze_paper(self, paper_title: str, chunks: list, source_name: str) -> dict:
         """
-        Uses RAG and Summarizer to extract structured fields.
-        Assumes the RAGPipeline is already populated with the paper's chunks.
+        Phase 5: Extracts structured fields from paper text using the existing RAG pipeline.
         """
-        logger.info(f"Analyzing paper: {paper_title}")
-        
-        # We need to answer specific questions using RAG.
-        # We'll filter the retriever to only look at this specific source if possible,
-        # but since our RAGPipeline doesn't currently support source filtering in `answer`,
-        # we assume for the agent workflow that we ingest one paper at a time into a temp index,
-        # OR we just rely on top_k retrieving relevant info (which works if the index is small).
-        # For safety, let's just ask the questions. The agent index will contain only the top-K papers.
+        logger.info(f"Extracting structured analysis for: '{paper_title}'")
         
         def safe_ask(question: str) -> str:
-            # We append the paper title to contextulize the query
             q = f"In the paper '{paper_title}', {question}"
             try:
+                if not self.rag:
+                    return "Not explicitly mentioned in the paper."
                 res = self.rag.answer(q, top_k=3)
-                ans = res.get("answer", "Not found.")
-                # basic cleanup
-                if "I cannot answer this" in ans or "Could not generate" in ans:
-                    return "Not explicitly stated."
-                return ans
+                ans = res.get("answer", "")
+                return self._sanitize_field(ans)
             except Exception as e:
-                logger.error(f"Failed to ask '{question}': {e}")
-                return "Error during extraction."
+                logger.error(f"QA extraction error for query '{question}': {e}")
+                return "Not explicitly mentioned in the paper."
 
         problem = safe_ask("what is the main research problem being addressed?")
         objective = safe_ask("what is the primary objective or goal?")
-        method = safe_ask("what is the proposed method, model, or architecture?")
+        method = safe_ask("what is the proposed method, model, algorithm, or architecture?")
         dataset = safe_ask("what datasets were used for experiments or evaluation?")
         metrics = safe_ask("what evaluation metrics were used?")
-        results = safe_ask("what were the main experimental results or performance numbers?")
+        results = safe_ask("what were the main experimental results, findings, or performance numbers?")
 
-        # Use summarizer for the rest (Insights)
-        logger.info("Extracting insights via Summarizer...")
-        insights = self.summarizer.full_analysis(chunks, source=source_name)
-        
+        # Use Summarizer for qualitative insights
+        insights = {}
+        if self.summarizer and chunks:
+            try:
+                insights = self.summarizer.full_analysis(chunks, source=source_name)
+            except Exception as sum_err:
+                logger.error(f"Summarizer error for '{source_name}': {sum_err}")
+
+        key_findings = insights.get("key_findings") or "Not explicitly mentioned in the paper."
+        limitations = insights.get("limitations") or "Not explicitly mentioned in the paper."
+        future_work = insights.get("future_work") or "Not explicitly mentioned in the paper."
+
         analysis = PaperAnalysis(
             title=paper_title,
             research_problem=problem,
@@ -85,88 +101,107 @@ class AgentAnalyzer:
             dataset=dataset,
             evaluation_metrics=metrics,
             experimental_results=results,
-            key_findings=insights.get("key_findings", "Not found"),
-            limitations=insights.get("limitations", "Not found"),
-            future_work=insights.get("future_work", "Not found")
+            key_findings=key_findings,
+            limitations=limitations,
+            future_work=future_work
         )
         
         return analysis.model_dump()
 
     def compare_papers(self, analyses: List[dict]) -> str:
         """
-        Generates a markdown comparison table from the analyses.
+        Phase 6: Generates a multi-paper comparison matrix in Markdown table format.
         """
-        logger.info(f"Comparing {len(analyses)} papers...")
+        logger.info(f"Generating multi-paper comparison matrix for {len(analyses)} papers...")
         if not analyses:
-            return "No papers to compare."
+            return "No analyzed papers available for comparison."
 
-        md = "### Multi-Paper Comparison\n\n"
-        md += "| Paper | Proposed Method | Dataset | Key Findings | Limitations |\n"
-        md += "|---|---|---|---|---|\n"
+        md = "### ⚖️ Multi-Paper Comparative Matrix\n\n"
+        md += "| Paper Title | Research Problem | Methodology | Dataset | Metrics & Results | Key Findings | Limitations |\n"
+        md += "|---|---|---|---|---|---|---|\n"
         
         for p in analyses:
-            title = p['title'].replace('|', '-')
-            method = str(p['proposed_method']).replace('|', '-').replace('\n', ' ')
-            dataset = str(p['dataset']).replace('|', '-').replace('\n', ' ')
+            title = p.get('title', 'Unknown').replace('|', '-')
+            prob = self._sanitize_field(p.get('research_problem')).replace('|', '-').replace('\n', ' ')
+            method = self._sanitize_field(p.get('proposed_method')).replace('|', '-').replace('\n', ' ')
+            dataset = self._sanitize_field(p.get('dataset')).replace('|', '-').replace('\n', ' ')
+            results = self._sanitize_field(p.get('experimental_results')).replace('|', '-').replace('\n', ' ')
             
-            # Format findings
-            findings = p['key_findings']
+            findings = p.get('key_findings', '')
             if isinstance(findings, list):
-                findings = findings[0] if findings else "None"
-            findings = str(findings).replace('|', '-').replace('\n', ' ')
-            
-            # Format limitations
-            limitations = p['limitations']
-            if isinstance(limitations, list):
-                limitations = limitations[0] if limitations else "None"
-            limitations = str(limitations).replace('|', '-').replace('\n', ' ')
+                findings = findings[0] if findings else "Not explicitly mentioned in the paper."
+            findings = self._sanitize_field(findings).replace('|', '-').replace('\n', ' ')
 
-            md += f"| **{title}** | {method[:150]}... | {dataset[:100]} | {findings[:150]}... | {limitations[:100]} |\n"
+            limits = p.get('limitations', '')
+            if isinstance(limits, list):
+                limits = limits[0] if limits else "Not explicitly mentioned in the paper."
+            limits = self._sanitize_field(limits).replace('|', '-').replace('\n', ' ')
+
+            md += f"| **{title}** | {prob[:120]} | {method[:120]} | {dataset[:90]} | {results[:120]} | {findings[:120]} | {limits[:90]} |\n"
 
         return md
 
     def generate_literature_review(self, topic: str, analyses: List[dict]) -> str:
         """
-        Synthesizes a structured literature review based on the paper analyses.
-        Uses BART summarizer or rule-based templates since we don't have a large generative LLM.
+        Phase 7: Synthesizes a structured 6-section literature review grounded strictly in paper analyses.
         """
-        logger.info("Generating literature review...")
+        logger.info(f"Synthesizing literature review for topic: '{topic}'...")
         if not analyses:
-            return "No papers available for review."
+            return "No papers available to generate literature review."
 
-        review = f"## Literature Review: {topic}\n\n"
+        review = f"# 📝 Literature Review: {topic}\n\n"
         
-        review += "### 1. Introduction\n"
-        review += f"This review synthesizes findings from {len(analyses)} recently retrieved papers concerning the topic of **{topic}**. "
-        review += "The analyzed papers address various research problems and propose novel methodologies to advance the state-of-the-art.\n\n"
+        # 1. Introduction
+        review += "## 1. Introduction\n"
+        review += f"This literature review provides a structured synthesis of **{len(analyses)}** peer-reviewed scholarly papers addressing the topic of **{topic}**. "
+        review += "The reviewed studies focus on advancing domain-specific solutions, evaluating model performance, and highlighting current research challenges.\n\n"
 
-        review += "### 2. Existing Approaches & Methodologies\n"
+        # 2. Existing Approaches
+        review += "## 2. Existing Approaches\n"
         for p in analyses:
-            review += f"- **{p['title']}**: Proposed {p['proposed_method']} to address the problem of {p['research_problem']}.\n"
+            title = p.get("title", "Unknown")
+            prob = self._sanitize_field(p.get("research_problem"))
+            obj = self._sanitize_field(p.get("objective"))
+            review += f"- **{title}**: Investigates the problem of *{prob}* with the primary objective to *{obj}*.\n"
         review += "\n"
 
-        review += "### 3. Major Findings & Performance\n"
+        # 3. Methodology Comparison
+        review += "## 3. Methodology Comparison\n"
         for p in analyses:
-            review += f"- **{p['title']}**: Evaluated on {p['dataset']} using {p['evaluation_metrics']}. Results showed: {p['experimental_results']}.\n"
-        review += "\n"
-        
-        review += "### 4. Common Limitations\n"
-        for p in analyses:
-            lim = p['limitations']
-            if isinstance(lim, list):
-                lim = ", ".join(lim)
-            review += f"- **{p['title']}**: {lim}\n"
+            title = p.get("title", "Unknown")
+            method = self._sanitize_field(p.get("proposed_method"))
+            review += f"- **{title}**: Employs **{method}** as its core framework.\n"
         review += "\n"
 
-        review += "### 5. Future Directions\n"
-        review += "Based on the reviewed literature, several promising directions for future research emerge:\n"
+        # 4. Major Findings & Performance
+        review += "## 4. Major Findings & Performance\n"
         for p in analyses:
-            fw = p['future_work']
+            title = p.get("title", "Unknown")
+            dataset = self._sanitize_field(p.get("dataset"))
+            metrics = self._sanitize_field(p.get("evaluation_metrics"))
+            results = self._sanitize_field(p.get("experimental_results"))
+            review += f"- **{title}**: Evaluated on **{dataset}** using **{metrics}**. Experimental outcomes demonstrated: *{results}*.\n"
+        review += "\n"
+
+        # 5. Common Limitations
+        review += "## 5. Common Limitations\n"
+        for p in analyses:
+            title = p.get("title", "Unknown")
+            limits = p.get("limitations", "Not explicitly mentioned in the paper.")
+            if isinstance(limits, list):
+                limits = "; ".join(str(x) for x in limits if x)
+            review += f"- **{title}**: {self._sanitize_field(limits)}\n"
+        review += "\n"
+
+        # 6. Future Directions
+        review += "## 6. Future Directions\n"
+        review += "Across the analyzed literature, key avenues for future investigation include:\n"
+        for p in analyses:
+            title = p.get("title", "Unknown")
+            fw = p.get("future_work", "Not explicitly mentioned in the paper.")
             if isinstance(fw, list):
-                fw = ", ".join(fw)
-            review += f"- {fw}\n"
-        review += "\n"
-        
-        review += "---\n*Note: This review was automatically synthesized using the Agentic AI Research Assistant.*"
-        
+                fw = "; ".join(str(x) for x in fw if x)
+            review += f"- **{title}**: {self._sanitize_field(fw)}\n"
+        review += "\n---\n*Synthesis generated autonomously by the Agentic AI Research Assistant.*"
+
         return review

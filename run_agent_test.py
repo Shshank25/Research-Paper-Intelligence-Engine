@@ -8,13 +8,41 @@ if sys.platform == 'win32':
 from src.agent import ResearchAgent
 
 if __name__ == '__main__':
-    topic = "Federated Learning for Privacy-Preserving Medical Image Analysis"
-    print(f"Running ResearchAgent on topic: {topic}\n")
+    topic = "Retrieval-Augmented Generation in Healthcare"
+    print(f"==================================================")
+    print(f"Running 7th-Semester Agentic Workflow Test")
+    print(f"Topic: {topic}")
+    print(f"==================================================\n")
+    
     agent = ResearchAgent()
     result = agent.run(topic)
-    print("\n--- Final Report Summary ---")
-    print(f"Topic: {result.get('topic')}")
-    print(f"Papers Analyzed: {len(result.get('analyses', []))}")
-    print(f"\n--- Comparison Table ---\n{result.get('comparison')}")
-    print(f"\n--- Literature Review ---\n{result.get('literature_review')}")
+    
+    discovered = result.get("discovered_papers", [])
+    selected = result.get("selected_papers", [])
+    analyses = result.get("paper_analysis", [])
+    
+    print("\n==================================================")
+    print("WORKFLOW TEST RESULTS METRICS")
+    print("==================================================")
+    print(f"1. Papers Discovered    : {len(discovered)}")
+    print(f"2. Papers Selected      : {len(selected)}")
+    print(f"3. Papers Analyzed      : {len(analyses)}")
+    print("4. Paper Ranking Scores :")
+    for p in selected:
+        print(f"   - [{p.get('rank', 1)}] {p.get('title', 'Unknown')[:50]}... | Score: {p.get('relevance_score', 0.0)}")
+        
+    print("\n--------------------------------------------------")
+    print("5. Multi-Paper Comparison Matrix:")
+    print("--------------------------------------------------")
+    print(result.get("comparison"))
+    
+    print("\n--------------------------------------------------")
+    print("6. Literature Review:")
+    print("--------------------------------------------------")
+    print(result.get("literature_review"))
+    
+    print("\n==================================================")
+    print("✅ TEST WORKFLOW COMPLETE!")
+    print("==================================================")
+
 

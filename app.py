@@ -897,6 +897,7 @@ def confidence_badge(score: float) -> str:
 # Helper: Render Pipeline Progress HTML
 # ============================================================
 PIPELINE_STAGES = [
+    ("📋", "Plan"),
     ("🔍", "Search"),
     ("📊", "Rank"),
     ("🧠", "Analyze"),
@@ -904,7 +905,7 @@ PIPELINE_STAGES = [
     ("📝", "Review"),
 ]
 
-def render_pipeline(current_stage_idx: int, total_stages: int = 5) -> str:
+def render_pipeline(current_stage_idx: int, total_stages: int = 6) -> str:
     """
     Generates the HTML for the pipeline progress indicator.
     current_stage_idx: 0-based index of the currently active stage.
@@ -1266,91 +1267,114 @@ with tab_agent:
     </div>
     """, unsafe_allow_html=True)
 
-    topic = st.text_input(
-        "Research Topic",
-        placeholder="e.g., Retrieval-Augmented Generation in Healthcare",
-        key="agent_topic"
-    )
+    col_topic, col_limit = st.columns([3, 1])
+    with col_topic:
+        topic = st.text_input(
+            "Research Topic",
+            placeholder="e.g., Retrieval-Augmented Generation in Healthcare",
+            key="agent_topic"
+        )
+    with col_limit:
+        num_papers = st.slider("Number of Papers", 1, 10, 5, key="num_papers_slider")
 
     agent_btn = st.button("🚀 Run Full Research Workflow", use_container_width=True)
 
     if agent_btn and topic:
-        # Show initial pipeline (all pending)
-        pipeline_placeholder = st.empty()
-        pipeline_placeholder.markdown(render_pipeline(-1), unsafe_allow_html=True)
+        if not topic.strip():
+            st.error("⚠️ Please enter a valid research topic before starting.")
+        else:
+            # Show initial pipeline (all pending)
+            pipeline_placeholder = st.empty()
+            pipeline_placeholder.markdown(render_pipeline(-1), unsafe_allow_html=True)
 
-        stage_status = st.empty()
+            stage_status = st.empty()
 
-        try:
-            # ── Stage 0: Search ──
-            pipeline_placeholder.markdown(render_pipeline(0), unsafe_allow_html=True)
-            stage_status.markdown(
-                '<div class="stage-status"><span class="active">⟳</span> Searching arXiv for papers on this topic…</div>',
-                unsafe_allow_html=True
-            )
+            try:
+                from src.agent import (
+                    plan_research_node, search_papers_node, rank_papers_node,
+                    analyze_papers_node, compare_papers_node,
+                    review_papers_node, ResearchState
+                )
 
-            agent = ResearchAgent()
-            # We need to run the pipeline manually, stage by stage, for progress updates
-            from src.agent import (
-                search_papers_node, rank_papers_node,
-                analyze_papers_node, compare_papers_node,
-                review_papers_node, ResearchState
-            )
+                state = ResearchState(
+                    research_topic=topic,
+                    topic=topic,
+                    research_questions=[],
+                    discovered_papers=[],
+                    raw_papers=[],
+                    ranked_papers=[],
+                    selected_papers=[],
+                    paper_analysis=[],
+                    analyses=[],
+                    comparison="",
+                    literature_review="",
+                    status="Starting...",
+                    errors=[]
+                )
 
-            state = ResearchState(
-                topic=topic,
-                raw_papers=[],
-                ranked_papers=[],
-                selected_papers=[],
-                analyses=[],
-                comparison="",
-                literature_review="",
-                status="Starting..."
-            )
+                # ── Stage 0: Plan ──
+                pipeline_placeholder.markdown(render_pipeline(0), unsafe_allow_html=True)
+                stage_status.markdown(
+                    '<div class="stage-status"><span class="active">⟳</span> Formulating research plan & scope…</div>',
+                    unsafe_allow_html=True
+                )
+                state = plan_research_node(state)
 
-            # Search
-            state = search_papers_node(state)
-            num_found = len(state.get("raw_papers", []))
+                # ── Stage 1: Search ──
+                pipeline_placeholder.markdown(render_pipeline(1), unsafe_allow_html=True)
+                stage_status.markdown(
+                    '<div class="stage-status"><span class="active">⟳</span> Searching arXiv for papers on this topic…</div>',
+                    unsafe_allow_html=True
+                )
+                state = search_papers_node(state)
+                num_found = len(state.get("discovered_papers", []))
 
-            # ── Stage 1: Rank ──
-            pipeline_placeholder.markdown(render_pipeline(1), unsafe_allow_html=True)
-            stage_status.markdown(
-                f'<div class="stage-status"><span class="done">✓</span> Found {num_found} papers — <span class="active">⟳</span> Ranking by relevance…</div>',
-                unsafe_allow_html=True
-            )
-            state = rank_papers_node(state)
-            num_ranked = len(state.get("selected_papers", []))
+                if num_found == 0:
+                    st.warning(f"⚠️ No papers found on arXiv for query '{topic}'. Try broadening your search terms.")
+                else:
+                    # ── Stage 2: Rank ──
+                    pipeline_placeholder.markdown(render_pipeline(2), unsafe_allow_html=True)
+                    stage_status.markdown(
+                        f'<div class="stage-status"><span class="done">✓</span> Discovered {num_found} papers — <span class="active">⟳</span> Ranking top-{num_papers} by semantic relevance…</div>',
+                        unsafe_allow_html=True
+                    )
+                    # Override Top-K selection with UI slider
+                    from src.ranker import SemanticRanker
+                    ranker = SemanticRanker(top_k=num_papers)
+                    state["ranked_papers"] = ranker.rank_papers(topic, state.get("discovered_papers", []))
+                    state["selected_papers"] = state["ranked_papers"]
+                    num_ranked = len(state.get("selected_papers", []))
 
-            # ── Stage 2: Analyze ──
-            pipeline_placeholder.markdown(render_pipeline(2), unsafe_allow_html=True)
-            stage_status.markdown(
-                f'<div class="stage-status"><span class="done">✓</span> Ranked top {num_ranked} papers — <span class="active">⟳</span> Analyzing with RAG engine…</div>',
-                unsafe_allow_html=True
-            )
-            state = analyze_papers_node(state)
+                    # ── Stage 3: Analyze ──
+                    pipeline_placeholder.markdown(render_pipeline(3), unsafe_allow_html=True)
+                    stage_status.markdown(
+                        f'<div class="stage-status"><span class="done">✓</span> Selected top {num_ranked} papers — <span class="active">⟳</span> Ingesting into VT RAG engine & extracting insights…</div>',
+                        unsafe_allow_html=True
+                    )
+                    state = analyze_papers_node(state)
 
-            # ── Stage 3: Compare ──
-            pipeline_placeholder.markdown(render_pipeline(3), unsafe_allow_html=True)
-            stage_status.markdown(
-                '<div class="stage-status"><span class="done">✓</span> Analysis complete — <span class="active">⟳</span> Generating comparison…</div>',
-                unsafe_allow_html=True
-            )
-            state = compare_papers_node(state)
+                    # ── Stage 4: Compare ──
+                    pipeline_placeholder.markdown(render_pipeline(4), unsafe_allow_html=True)
+                    stage_status.markdown(
+                        '<div class="stage-status"><span class="done">✓</span> Analysis complete — <span class="active">⟳</span> Generating comparative matrix…</div>',
+                        unsafe_allow_html=True
+                    )
+                    state = compare_papers_node(state)
 
-            # ── Stage 4: Review ──
-            pipeline_placeholder.markdown(render_pipeline(4), unsafe_allow_html=True)
-            stage_status.markdown(
-                '<div class="stage-status"><span class="done">✓</span> Comparison ready — <span class="active">⟳</span> Synthesizing literature review…</div>',
-                unsafe_allow_html=True
-            )
-            state = review_papers_node(state)
+                    # ── Stage 5: Review ──
+                    pipeline_placeholder.markdown(render_pipeline(5), unsafe_allow_html=True)
+                    stage_status.markdown(
+                        '<div class="stage-status"><span class="done">✓</span> Matrix ready — <span class="active">⟳</span> Synthesizing literature review…</div>',
+                        unsafe_allow_html=True
+                    )
+                    state = review_papers_node(state)
 
-            # ── All Done ──
-            pipeline_placeholder.markdown(render_pipeline(5), unsafe_allow_html=True)
-            stage_status.markdown(
-                '<div class="stage-status"><span class="done">✓</span> Workflow complete! All stages finished successfully.</div>',
-                unsafe_allow_html=True
-            )
+                    # ── All Done ──
+                    pipeline_placeholder.markdown(render_pipeline(6), unsafe_allow_html=True)
+                    stage_status.markdown(
+                        '<div class="stage-status"><span class="done">✓</span> Research Workflow complete! All 6 stages finished successfully.</div>',
+                        unsafe_allow_html=True
+                    )
 
             # ════════════════════════════════════════════════
             # Display Results
