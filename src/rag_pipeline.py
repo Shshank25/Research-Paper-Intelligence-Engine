@@ -85,13 +85,19 @@ class RAGPipeline:
                     "Call build_index_from_pdfs() or ingest_pdfs() first."
                 )
 
-        # ── QA model setup ──
-        logger.info(f"Loading QA model: {qa_model}")
-        logger.info("  (First run downloads the model from HuggingFace — once only)")
+        # ── QA model setup (lazy) ──
         self.qa_model_name = qa_model
-        self.tokenizer = AutoTokenizer.from_pretrained(qa_model)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(qa_model)
-        logger.info("RAGPipeline ready.")
+        self.tokenizer = None
+        self.model = None
+        logger.info(f"RAGPipeline initialised (QA model: {qa_model}, loaded on first use).")
+
+    def _load_model(self):
+        """Lazy-initialise the QA model on first use."""
+        if self.model is None:
+            logger.info(f"Loading QA model: {self.qa_model_name}")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.qa_model_name)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(self.qa_model_name)
+            logger.info("QA model ready.")
 
     # ── Core QA ──────────────────────────────────────────────
 
@@ -126,6 +132,9 @@ class RAGPipeline:
             raise RuntimeError(
                 "No vector index found. Please upload and index papers first."
             )
+
+        # Step 0: Lazy-load the QA model if needed
+        self._load_model()
 
         # Step 1: Retrieve relevant chunks
         logger.info(f"RAG → Question: '{question[:80]}'")
@@ -224,8 +233,9 @@ class RAGPipeline:
         os.makedirs(DATA_DIR, exist_ok=True)
         for p in pdf_paths:
             dest = os.path.join(DATA_DIR, os.path.basename(p))
-            if not os.path.isfile(dest) or force_rebuild:
-                shutil.copy2(p, dest)
+            if os.path.abspath(p) != os.path.abspath(dest):
+                if not os.path.isfile(dest) or force_rebuild:
+                    shutil.copy2(p, dest)
 
         # Phase 1 — Extract
         processor = PDFProcessor()

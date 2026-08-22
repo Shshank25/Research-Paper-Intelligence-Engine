@@ -7,4 +7,5 @@ hf_cache/
 site_packages/
 vector_store/
 *.pdf
+*.zip
 .DS_Store

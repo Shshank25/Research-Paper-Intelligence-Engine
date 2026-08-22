@@ -54,9 +54,21 @@ class EmbeddingGenerator:
         logger.info(f"Loading embedding model: {model_name}")
         logger.info("  (First run downloads ~90 MB from HuggingFace — once only)")
         self.model_name = model_name
-        self.model      = SentenceTransformer(model_name)
-        self.dim        = self.model.get_sentence_embedding_dimension()
-        logger.info(f"  Model ready | embedding dim = {self.dim}")
+        self._model     = None
+        self.dim        = None
+
+    def _load_model(self):
+        """Lazy-initialise the embedding model on first use."""
+        if self._model is None:
+            self._model = SentenceTransformer(self.model_name)
+            self.dim    = self._model.get_sentence_embedding_dimension()
+            logger.info(f"  Model ready | embedding dim = {self.dim}")
+
+    @property
+    def model(self):
+        """Property that auto-loads the model on first access."""
+        self._load_model()
+        return self._model
 
     # ── Embed chunks ─────────────────────────────────────────
 
