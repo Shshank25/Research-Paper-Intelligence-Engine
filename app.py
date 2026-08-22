@@ -1376,104 +1376,107 @@ with tab_agent:
                         unsafe_allow_html=True
                     )
 
-            # ════════════════════════════════════════════════
-            # Display Results
-            # ════════════════════════════════════════════════
+                    # ════════════════════════════════════════════════
+                    # Display Results
+                    # ════════════════════════════════════════════════
 
-            st.markdown("---")
+                    st.markdown("---")
 
-            # ── Top Ranked Papers ──
-            st.markdown("### 🏆 Top Ranked Papers")
-            papers_html = ""
-            for i, p in enumerate(state.get("selected_papers", []), start=1):
-                papers_html += render_paper_card(p, i)
-            st.markdown(papers_html, unsafe_allow_html=True)
+                    # ── Research Plan Questions ──
+                    st.markdown("### 📋 Formulated Research Plan & Scope")
+                    for q in state.get("research_questions", []):
+                        st.markdown(f"- ❓ {q}")
 
-            st.markdown("---")
+                    st.markdown("---")
 
-            # ── Structured Analysis ──
-            st.markdown("### 📊 Structured Analysis")
-            for idx, p_analysis in enumerate(state.get("analyses", [])):
-                with st.expander(f"📄 {p_analysis['title']}", expanded=(idx == 0)):
-                    # Display as a nicely formatted glass card
-                    fields = [
-                        ("🎯 Research Problem", p_analysis.get("research_problem", "")),
-                        ("🎯 Objective", p_analysis.get("objective", "")),
-                        ("🔬 Proposed Method", p_analysis.get("proposed_method", "")),
-                        ("📊 Dataset", p_analysis.get("dataset", "")),
-                        ("📏 Evaluation Metrics", p_analysis.get("evaluation_metrics", "")),
-                        ("📈 Results", p_analysis.get("experimental_results", "")),
-                    ]
-                    for label, value in fields:
-                        st.markdown(f"**{label}**")
-                        st.markdown(f"> {value}")
+                    # ── Top Ranked Papers ──
+                    st.markdown("### 🏆 Top Ranked Papers")
+                    papers_html = ""
+                    for i, p in enumerate(state.get("selected_papers", []), start=1):
+                        papers_html += render_paper_card(p, i)
+                    st.markdown(papers_html, unsafe_allow_html=True)
 
-                    # Key Findings, Limitations, Future Work
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        render_insight("Key Findings", p_analysis.get("key_findings", "—"), "findings", "🟢")
-                    with col2:
-                        render_insight("Limitations", p_analysis.get("limitations", "—"), "limits", "🟡")
-                    with col3:
-                        render_insight("Future Work", p_analysis.get("future_work", "—"), "future", "🔵")
+                    st.markdown("---")
 
-            st.markdown("---")
+                    # ── Structured Analysis ──
+                    st.markdown("### 📊 Structured Analysis")
+                    for idx, p_analysis in enumerate(state.get("analyses", [])):
+                        with st.expander(f"📄 {p_analysis['title']}", expanded=(idx == 0)):
+                            fields = [
+                                ("🎯 Research Problem", p_analysis.get("research_problem", "")),
+                                ("🎯 Objective", p_analysis.get("objective", "")),
+                                ("🔬 Proposed Method", p_analysis.get("proposed_method", "")),
+                                ("📊 Dataset", p_analysis.get("dataset", "")),
+                                ("📏 Evaluation Metrics", p_analysis.get("evaluation_metrics", "")),
+                                ("📈 Results", p_analysis.get("experimental_results", "")),
+                            ]
+                            for label, value in fields:
+                                st.markdown(f"**{label}**")
+                                st.markdown(f"> {value}")
 
-            # ── Multi-Paper Comparison ──
-            st.markdown("### ⚖️ Multi-Paper Comparison")
-            comparison_html = build_comparison_html(state.get("analyses", []))
-            st.markdown(f'<div class="glass-card" style="padding: 0; overflow-x: auto;">{comparison_html}</div>', unsafe_allow_html=True)
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                render_insight("Key Findings", p_analysis.get("key_findings", "—"), "findings", "🟢")
+                            with col2:
+                                render_insight("Limitations", p_analysis.get("limitations", "—"), "limits", "🟡")
+                            with col3:
+                                render_insight("Future Work", p_analysis.get("future_work", "—"), "future", "🔵")
 
-            st.markdown("---")
+                    st.markdown("---")
 
-            # ── Literature Review ──
-            lit_review = state.get("literature_review", "")
-            if lit_review:
-                st.markdown(f'<div class="lit-review">{_md_to_safe_html(lit_review)}</div>', unsafe_allow_html=True)
+                    # ── Multi-Paper Comparison ──
+                    st.markdown("### ⚖️ Multi-Paper Comparison")
+                    comparison_html = build_comparison_html(state.get("analyses", []))
+                    st.markdown(f'<div class="glass-card" style="padding: 0; overflow-x: auto;">{comparison_html}</div>', unsafe_allow_html=True)
 
-            # ── Save state for export ──
-            st.session_state.last_workflow_state = state
-            st.session_state.last_workflow_topic = topic
+                    st.markdown("---")
 
-            st.markdown("---")
+                    # ── Literature Review ──
+                    lit_review = state.get("literature_review", "")
+                    if lit_review:
+                        st.markdown(f'<div class="lit-review">{_md_to_safe_html(lit_review)}</div>', unsafe_allow_html=True)
 
-            # ── Action buttons row ──
-            action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
+                    # ── Save state for export ──
+                    st.session_state.last_workflow_state = state
+                    st.session_state.last_workflow_topic = topic
 
-            with action_col1:
-                # PDF Export
-                try:
-                    from src.export import ResearchReportPDF
-                    exporter = ResearchReportPDF()
-                    pdf_bytes = exporter.generate(topic, state)
-                    st.download_button(
-                        label="📥 Download Report (PDF)",
-                        data=pdf_bytes,
-                        file_name=f"research_report_{topic.replace(' ', '_')[:30]}.pdf",
-                        mime="application/pdf",
-                        key="download_pdf_report",
-                        use_container_width=True,
-                    )
-                except ImportError:
-                    st.warning("PDF export requires fpdf2. Install: pip install fpdf2")
-                except Exception as pdf_exc:
-                    st.error(f"PDF export failed: {pdf_exc}")
+                    st.markdown("---")
 
-            with action_col2:
-                # Bookmark toggle for all papers
-                if st.button("⭐ Bookmark All Papers", key="bookmark_all", use_container_width=True):
-                    existing_ids = {p.get('id') for p in st.session_state.bookmarked_papers}
-                    for p in state.get("selected_papers", []):
-                        if p.get('id') not in existing_ids:
-                            st.session_state.bookmarked_papers.append(p)
-                    st.toast(f"⭐ Bookmarked {len(state.get('selected_papers', []))} papers!")
-                    st.rerun()
+                    # ── Action buttons row ──
+                    action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
 
-        except Exception as exc:
-            pipeline_placeholder.markdown(render_pipeline(-1), unsafe_allow_html=True)
-            stage_status.empty()
-            st.error(f"❌ Workflow Error: {exc}")
-            logger.exception(exc)
+                    with action_col1:
+                        try:
+                            from src.export import ResearchReportPDF
+                            exporter = ResearchReportPDF()
+                            pdf_bytes = exporter.generate(topic, state)
+                            st.download_button(
+                                label="📥 Download Report (PDF)",
+                                data=pdf_bytes,
+                                file_name=f"research_report_{topic.replace(' ', '_')[:30]}.pdf",
+                                mime="application/pdf",
+                                key="download_pdf_report",
+                                use_container_width=True,
+                            )
+                        except ImportError:
+                            st.warning("PDF export requires fpdf2. Install: pip install fpdf2")
+                        except Exception as pdf_exc:
+                            st.error(f"PDF export failed: {pdf_exc}")
+
+                    with action_col2:
+                        if st.button("⭐ Bookmark All Papers", key="bookmark_all", use_container_width=True):
+                            existing_ids = {p.get('id') for p in st.session_state.bookmarked_papers}
+                            for p in state.get("selected_papers", []):
+                                if p.get('id') not in existing_ids:
+                                    st.session_state.bookmarked_papers.append(p)
+                            st.toast(f"⭐ Bookmarked {len(state.get('selected_papers', []))} papers!")
+                            st.rerun()
+
+            except Exception as exc:
+                pipeline_placeholder.markdown(render_pipeline(-1), unsafe_allow_html=True)
+                stage_status.empty()
+                st.error(f"❌ Workflow Error: {exc}")
+                logger.exception(exc)
 
     elif agent_btn and not topic:
         st.warning("Please enter a research topic first.")
