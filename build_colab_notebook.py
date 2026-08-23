@@ -11,6 +11,12 @@ files_to_write = [
     "src/retriever.py",
     "src/rag_pipeline.py",
     "src/summarizer.py",
+    "src/arxiv_search.py",
+    "src/ranker.py",
+    "src/agent.py",
+    "src/analyzer.py",
+    "src/citation_graph.py",
+    "src/export.py",
     "app.py"
 ]
 
