@@ -16,9 +16,9 @@
 
 ## 📌 Overview
 
-Upload one or more research paper PDFs and use this **Retrieval-Augmented Generation (RAG)** system to ask plain-English questions, generate summaries, and extract insights. 
+**7th Semester Update:** This project has been upgraded to an **Agentic AI Research Assistant**. It now features an end-to-end automated workflow that takes a research topic, discovers relevant scholarly papers (via arXiv), semantically ranks them, extracts structured insights, generates a multi-paper comparison, and synthesizes a literature review.
 
-**Everything runs entirely locally** — no OpenAI API key needed. Your documents never leave your machine!
+You can still upload your own PDFs to the manual RAG pipeline, but the new Agentic Workflow tab handles the entire research lifecycle autonomously!
 
 ---
 
@@ -39,17 +39,22 @@ Reading and synthesizing academic research papers is highly time-consuming. Rese
 
 ## 🏗️ System Architecture
 
-This project is built using a state-of-the-art modular RAG pipeline:
+This project employs a **LangGraph-driven Agentic Workflow** leveraging the existing RAG pipeline as a tool:
 
 ```mermaid
 graph TD
-    A[PDF Upload] --> B(Text Extraction\nPyMuPDF)
-    B --> C(Chunking\nLangChain)
-    C --> D(Embeddings\nSentence Transformers)
-    D --> E[(FAISS Vector DB)]
-    E --> F(Semantic Retriever)
-    F --> G(RAG QA Pipeline\nHuggingFace)
-    G --> H[Streamlit UI]
+    A[Research Topic Input] --> B(Paper Discovery\narXiv API)
+    B --> C(Semantic Ranking\nSentence Transformers)
+    C --> D(Top-K Papers)
+    
+    D --> E[Structured Analysis via RAG]
+    E -.->|Ingest| F[(FAISS Vector DB)]
+    F -.->|Retrieve| G(QA Pipeline\nHuggingFace)
+    G -.->|Extract| E
+    
+    E --> H(Multi-Paper Comparison)
+    H --> I(Literature Review Synthesis)
+    I --> J[Streamlit Dashboard]
 ```
 
 ---
@@ -65,9 +70,11 @@ We use robust open-source libraries for this local pipeline:
 | **Text Splitting** | LangChain | `0.2.x` |
 | **Embeddings** | `sentence-transformers` (all-MiniLM-L6-v2) | `3.0.1` |
 | **Vector Store** | FAISS (CPU) | `1.8.0` |
+| **Agent Orchestration** | LangGraph | `>=0.0.20` |
+| **Paper Discovery** | arXiv API | `>=2.1.0` |
 | **QA Model** | HuggingFace `deepset/roberta-base-squad2` | `transformers` |
 | **Summarization** | HuggingFace `facebook/bart-large-cnn` | `transformers` |
-| **Frontend** | Streamlit | `1.35.0` |
+| **Frontend** | Streamlit | `>=1.30.0` |
 
 ---
 
@@ -101,9 +108,8 @@ We use robust open-source libraries for this local pipeline:
    ```
 2. **Interact!**
    - Open your browser to `http://localhost:8501`.
-   - Drag & drop your PDF(s) into the sidebar.
-   - Click **Process & Index PDFs**.
-   - Use the interactive tabs to Ask Questions, Summarize, or Extract Insights!
+   - **(NEW) Agentic Workflow Tab:** Enter a research topic and watch the AI discover, rank, analyze, compare, and review papers autonomously.
+   - **(Legacy) Manual RAG:** Drag & drop your PDF(s) into the sidebar, process them, and Ask Questions, Summarize, or Extract Insights manually.
 
 ---
 
@@ -126,6 +132,10 @@ We use robust open-source libraries for this local pipeline:
 ```text
 Research-Paper-Intelligence-Engine/
 ├── src/
+│   ├── agent.py               # NEW: LangGraph orchestrator
+│   ├── analyzer.py            # NEW: Structured extraction & comparison
+│   ├── arxiv_search.py        # NEW: Paper discovery module
+│   ├── ranker.py              # NEW: Semantic ranking module
 │   ├── pdf_processor.py       # Extract text from PDFs
 │   ├── chunking.py            # Break text into semantic chunks
 │   ├── embeddings.py          # Generate vector embeddings
@@ -145,12 +155,10 @@ Research-Paper-Intelligence-Engine/
 
 ---
 
-## 🔮 Future Work (Phase 2 & Beyond)
+## 🔮 Future Work (Phase 3)
 
-This VT project (Phase 1) successfully established the foundational RAG pipeline. In the next semesters, this project will evolve into a full **Agentic AI Research Scientist**:
+This 7th-semester project successfully transitioned from a passive RAG system to an active **Agentic AI Research Assistant**. Future enhancements may include:
 
-- **Multi-Agent Architecture:** Implementing LangGraph or AutoGen to orchestrate multiple specialized agents.
-- **Autonomous Paper Discovery:** Integration with the ArXiv API to fetch related papers dynamically.
 - **Knowledge Graph Integration:** Mapping relationships between citations and concepts across multiple papers.
 - **Research Gap Detection:** Using LLMs to automatically identify unaddressed areas in current literature.
 - **Hypothesis & Experiment Generation:** Generating proposals based on detected research gaps.

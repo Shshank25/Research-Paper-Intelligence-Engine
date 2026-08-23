@@ -18,6 +18,7 @@
 import os
 import re
 import logging
+import unicodedata
 import fitz  # PyMuPDF
 
 import sys
@@ -110,6 +111,9 @@ class PDFProcessor:
             A cleaner, more readable string.
         """
         text = raw_text
+
+        # Normalize Unicode ligatures (e.g. \ufb01 -> fi, \ufb02 -> fl)
+        text = unicodedata.normalize("NFKD", text)
 
         # Re-join hyphenated words split across lines (common in PDFs)
         text = re.sub(r"-\n", "", text)

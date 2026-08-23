@@ -35,7 +35,8 @@ from config import QA_MODEL, TOP_K_RESULTS, LOG_LEVEL
 from src.retriever import Retriever
 
 import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, TextIteratorStreamer
+from threading import Thread
 
 # ── Logger ───────────────────────────────────────────────────
 logging.basicConfig(
@@ -84,31 +85,40 @@ class RAGPipeline:
                     "Call build_index_from_pdfs() or ingest_pdfs() first."
                 )
 
-        # ── QA model setup ──
-        logger.info(f"Loading QA model: {qa_model}")
-        logger.info("  (First run downloads the model from HuggingFace — once only)")
+        # ── QA model setup (lazy) ──
         self.qa_model_name = qa_model
-        self.tokenizer = AutoTokenizer.from_pretrained(qa_model)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(qa_model)
-        logger.info("RAGPipeline ready.")
+        self.tokenizer = None
+        self.model = None
+        logger.info(f"RAGPipeline initialised (QA model: {qa_model}, loaded on first use).")
+
+    def _load_model(self):
+        """Lazy-initialise the QA model on first use."""
+        if self.model is None:
+            logger.info(f"Loading QA model: {self.qa_model_name}")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.qa_model_name)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(self.qa_model_name)
+            logger.info("QA model ready.")
 
     # ── Core QA ──────────────────────────────────────────────
 
-    def answer(self, question: str, top_k: int = TOP_K_RESULTS) -> dict:
+    def answer(self, question: str, top_k: int = TOP_K_RESULTS, stream: bool = False) -> dict:
         """
         Answer a question using retrieved context.
 
         Args:
             question: The user's natural language question.
             top_k   : Number of context chunks to retrieve.
+            stream  : If True, returns a 'streamer' and 'thread' instead of 'answer'.
 
         Returns:
             {
                 "question"  : str,
-                "answer"    : str,   # extracted answer span
-                "confidence": float, # model confidence (0–1)
-                "context"   : str,   # full context fed to QA model
-                "sources"   : list,  # [{"source": ..., "score": ...}]
+                "answer"    : str,   # if stream=False
+                "streamer"  : TextIteratorStreamer, # if stream=True
+                "thread"    : Thread, # if stream=True
+                "confidence": float,
+                "context"   : str,
+                "sources"   : list,
             }
 
         Raises:
@@ -123,43 +133,70 @@ class RAGPipeline:
                 "No vector index found. Please upload and index papers first."
             )
 
+        # Step 0: Lazy-load the QA model if needed
+        self._load_model()
+
         # Step 1: Retrieve relevant chunks
         logger.info(f"RAG → Question: '{question[:80]}'")
         chunks = self.retriever.retrieve(question, top_k=top_k)
 
         # Step 2: Build context from retrieved chunks
-        context_parts  = [c["text"] for c in chunks]
-        context        = " ".join(context_parts)  # flat string for QA model
-        sources        = [{"source": c["source"], "score": c["score"]} for c in chunks]
+        context_parts = []
+        for i, c in enumerate(chunks, 1):
+            context_parts.append(f"[Source {i}]: {c['text']}")
+        context = "\n\n".join(context_parts)
+        sources = [{"source": c["source"], "score": c["score"]} for c in chunks]
 
         # Step 3: Run Generative QA model
         logger.info(f"Running QA model on context ({len(context)} chars) …")
-        try:
-            prompt = f"Answer the following question based only on the provided context. If the context does not contain the answer, say 'I cannot answer this based on the provided text'.\n\nContext:\n{context}\n\nQuestion:\n{question}\n\nAnswer:"
-            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=150,
-                    num_beams=4,
-                    early_stopping=True
-                )
-            answer = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            confidence = 1.0
-        except Exception as exc:
-            logger.error(f"QA model failed: {exc}")
-            answer     = "Could not generate an answer. Please rephrase your question."
-            confidence = 0.0
+        prompt = f"Answer the following question based ONLY on the provided context. If the context does not contain the answer, explicitly state 'I cannot answer this based on the provided text.' Do not use outside knowledge.\n\nContext:\n{context}\n\nQuestion:\n{question}\n\nAnswer:"
+        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
 
-        logger.info(f"Answer: '{answer[:80]}'")
+        if stream:
+            streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+            generation_kwargs = dict(
+                **inputs,
+                streamer=streamer,
+                max_new_tokens=250,
+                do_sample=True,
+                temperature=0.3,
+            )
+            thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
+            thread.start()
 
-        return {
-            "question"  : question,
-            "answer"    : answer,
-            "confidence": confidence,
-            "context"   : context,
-            "sources"   : sources,
-        }
+            return {
+                "question"  : question,
+                "streamer"  : streamer,
+                "thread"    : thread,
+                "confidence": 1.0,
+                "context"   : context,
+                "sources"   : sources,
+            }
+        else:
+            try:
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=250,
+                        num_beams=4,
+                        early_stopping=True
+                    )
+                answer = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                confidence = 1.0
+            except Exception as exc:
+                logger.error(f"QA model failed: {exc}")
+                answer     = "Could not generate an answer. Please rephrase your question."
+                confidence = 0.0
+
+            logger.info(f"Answer: '{answer[:80]}'")
+
+            return {
+                "question"  : question,
+                "answer"    : answer,
+                "confidence": confidence,
+                "context"   : context,
+                "sources"   : sources,
+            }
 
     # ── Full ingest pipeline (convenience) ───────────────────
 
@@ -196,8 +233,9 @@ class RAGPipeline:
         os.makedirs(DATA_DIR, exist_ok=True)
         for p in pdf_paths:
             dest = os.path.join(DATA_DIR, os.path.basename(p))
-            if not os.path.isfile(dest) or force_rebuild:
-                shutil.copy2(p, dest)
+            if os.path.abspath(p) != os.path.abspath(dest):
+                if not os.path.isfile(dest) or force_rebuild:
+                    shutil.copy2(p, dest)
 
         # Phase 1 — Extract
         processor = PDFProcessor()

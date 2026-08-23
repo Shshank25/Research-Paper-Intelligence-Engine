@@ -36,7 +36,11 @@ TOP_K_RESULTS   = 5         # number of chunks to retrieve per query
 # facebook/bart-large-cnn is fine for CPU; swap for a larger
 # model if running on GPU/Colab A100.
 SUMMARIZATION_MODEL = "facebook/bart-large-cnn"
-QA_MODEL            = "google/flan-t5-base"
+QA_MODEL            = "google/flan-t5-large"
+
+# ── Agentic Workflow ─────────────────────────────────────────
+ARXIV_SEARCH_LIMIT  = 10        # Max papers to fetch from arXiv
+AGENT_TOP_K         = 3         # Top K most relevant papers to analyze
 
 # ── Logging ──────────────────────────────────────────────────
 LOG_LEVEL = "INFO"

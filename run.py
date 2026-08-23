@@ -15,6 +15,12 @@ USER_BASE = r"E:\python_user"
 env = os.environ.copy()
 env["PYTHONUSERBASE"] = USER_BASE
 
+# Suppress harmless torchvision / transformers warnings that flood the logs
+env["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
+env["TOKENIZERS_PARALLELISM"] = "false"
+env["HF_HUB_DISABLE_TELEMETRY"] = "1"
+env["TRANSFORMERS_VERBOSITY"] = "error"
+
 # Find the streamlit executable in the user base Scripts folder
 # Under Python 3, user binaries go to Scripts on Windows
 streamlit_exe = os.path.join(USER_BASE, "Scripts", "streamlit.exe")
